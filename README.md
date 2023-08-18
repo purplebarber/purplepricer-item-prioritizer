@@ -17,7 +17,7 @@
     ```
 + Update the json file with your specific settings and preferences
 
-+ Run the main.py script (ensure you have a mongodb instance running too):
++ Run the main.py script:
     ```bash
     python main.py
     ```
