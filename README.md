@@ -8,7 +8,7 @@
 + Clone the repository to your local machine:
     
     ```bash
-    git clone git@github.com:purplebarber/purplerpricer-item-prioritizer.git
+    git clone https://github.com/purplebarber/purplepricer-item-prioritizer.git
     ```
 + Install the required dependencies:
 
