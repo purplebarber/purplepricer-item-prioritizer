@@ -2,7 +2,6 @@ from requests import post
 from json import load
 
 
-
 def get_config() -> dict:
     with open("config.json", "r") as f:
         config = load(f)
@@ -26,23 +25,28 @@ def get_ecosystem_file() -> dict:
     return ecosystem
     
 
-def get_pricelist_path() -> str:
+def get_pricelist_path(ecosystem: dict, account_name_to_check: str) -> str:
     config = get_config()
     autobot_directory = config["path_to_autobot_directory"]
-    
-    ecosystem = get_ecosystem_file()
+
+    if not ecosystem:
+        ecosystem = get_ecosystem_file()
+
+    if not ecosystem.get("apps"):
+        raise Exception("apps not found in ecosystem.json")
+
     ecosystem_apps = ecosystem["apps"]
     
     account_name = str()
     
     for app in ecosystem_apps:
         app_env = app["env"]
-        if config.get("steam_account_name") == app_env["STEAM_ACCOUNT_NAME"]:
+        if account_name_to_check == app_env["STEAM_ACCOUNT_NAME"]:
             account_name = app_env["STEAM_ACCOUNT_NAME"]
             break
     
     if not account_name:
-        raise Exception("Steam account name not found in ecosystem.json, please check config.json")
+        raise Exception(f"Steam account {account_name_to_check} not found in ecosystem.json, please check config.json")
     
     return f"{autobot_directory}files/{account_name}/pricelist.json"
 
@@ -63,14 +67,10 @@ def get_skus(pricelist: dict) -> list:
     return skus
 
 
-def post_skus(skus: list) -> None:
+def post_skus(skus: list, prioritize_url: str, access_token: str) -> tuple:
     if not skus:
         raise Exception("No SKUs found in pricelist.json")
-    
-    config = get_config()
-    prioritize_url = config["pricer_url"]
-    access_token = config["access_token"]
-    
+
     if not prioritize_url:
         raise Exception("prioritize_url not found in config.json")
     
@@ -87,13 +87,36 @@ def post_skus(skus: list) -> None:
     }
     
     req = post(prioritize_url, params={"token": access_token}, json=data)
-    print(req.json())
+    return (req.json(), req.status_code)
+
 
 def main() -> None:
-    pricelist_path = get_pricelist_path()
-    pricelist = get_pricelist(pricelist_path)
-    skus = get_skus(pricelist)
-    post_skus(skus)
+    config, ecosystem = get_config(), get_ecosystem_file()
+    print_events = config["print_events"]
+
+    for account_name in config.get("steam_account_name"):
+        pricelist_path = get_pricelist_path(ecosystem, account_name)
+
+        pricer_url = str()
+        access_token = str()
+
+        for app in ecosystem["apps"]:
+            if not app["env"]["STEAM_ACCOUNT_NAME"] == account_name:
+                continue
+            pricer_url = app["env"]["CUSTOM_PRICER_URL"]
+            access_token = app["env"]["CUSTOM_PRICER_API_TOKEN"]
+
+        if not pricer_url:
+            raise Exception(f"pricer_url not found in ecosystem.json for {account_name}")
+
+        if not access_token:
+            raise Exception(f"access_token not found in config.json for {account_name}")
+
+        pricelist = get_pricelist(pricelist_path)
+        skus = get_skus(pricelist)
+        post_response = post_skus(skus, pricer_url, access_token)
+
+        (print("Response:", post_response[0]), print("Status Code:", post_response[1])) if print_events else None
 
 
 if __name__ == "__main__":
