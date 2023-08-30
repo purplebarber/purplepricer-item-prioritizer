@@ -1,7 +1,7 @@
 {
     "path_to_autobot_directory": "../tf2autobot/",
     "steam_account_name": [
-        "totodileBOT"
+        "account1"
     ],
     "print_events": true
 }
